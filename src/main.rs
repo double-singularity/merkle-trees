@@ -38,8 +38,72 @@ fn main() {
 
     println!("\n--- Merkle Root ---");
     println!("{}", layers.last().unwrap()[0]);
+
+    let root = layers.last().unwrap()[0].clone();
     
     println!("Total Tree Height: {}", layers.len());
+
+    let target_txn = "Tx2";
+    let target_idx = 1;
+    let proof = get_proof(&layers, target_idx);
+
+    let is_valid = verify(&root, target_idx, target_txn, &proof);
+    println!("Is Tx2 valid? {}", is_valid); // Should be true
+
+    // Try verify with wrong data
+    let is_valid_fake = verify(&root, target_idx, "Tx99", &proof);
+    println!("Is Tx99 valid? {}", is_valid_fake); // Should be false
+}
+
+fn get_proof(layers: &Vec<Vec<String>>, index: usize) -> Vec<String> {
+    let mut proof = Vec::new();
+    let mut current_index = index;
+    for i in 0..layers.len() - 1 {
+        let sibling_index;
+        let layer = &layers[i];
+
+        if layer.len() % 2 == 1 && current_index == layer.len() - 1 {
+            sibling_index = current_index;
+        } else {
+            if current_index % 2 == 0 {
+                sibling_index = current_index + 1;
+            } else {
+                sibling_index = current_index - 1;
+            }
+        }
+
+        if sibling_index < layer.len() {
+            proof.push(layer[sibling_index].clone());
+        } else {
+            proof.push(layer[current_index].clone());
+        }
+
+        current_index = current_index / 2;
+    }
+
+    proof
+}
+
+fn verify(root: &str, index: usize, data: &str, proof: &Vec<String>) -> bool {
+    let mut current_hash = hash(data);
+    let mut current_index = index;
+
+    for sibling_hash in proof {
+        
+        let combined;
+
+        if current_index % 2 == 0 {
+            combined = format!("{}{}", current_hash, sibling_hash);
+        } else {
+            combined = format!("{}{}", sibling_hash, current_hash);
+        }
+
+        current_hash = hash(&combined);
+        
+        current_index /= 2;
+    }
+
+    current_hash == root
 }
 
 fn hash(data: &str) -> String {
